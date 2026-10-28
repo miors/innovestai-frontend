@@ -13,23 +13,23 @@ const renderBold = (text) =>
   );
 
 export const AiAnalysis = ({ loading, text }) => {
-  const [shown, setShown] = useState(0);
+  const [progress, setProgress] = useState({ text: "", n: 0 });
+  const shown = progress.text === text ? progress.n : 0;
 
   useEffect(() => {
-    setShown(0);
     if (!text) return;
     const id = setInterval(() => {
-      setShown((n) => {
+      setProgress((p) => {
+        const n = p.text === text ? p.n : 0;
         if (n >= text.length) {
           clearInterval(id);
-          return n;
+          return p;
         }
-        return n + 1;
+        return { text, n: n + 1 };
       });
     }, 15);
     return () => clearInterval(id);
   }, [text]);
-
   if (loading) {
     return (
       <div className="mt-3 flex items-center gap-3 rounded-lg border border-violet-500/30 bg-slate-900/60 p-3">

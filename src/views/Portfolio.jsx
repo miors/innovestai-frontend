@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { Header } from "../components/Header";
 
@@ -52,7 +51,9 @@ export const Portfolio = () => {
   }, [items]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (id, quantity, buyPrice) => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 
 // Instantiate the core structural state context container
@@ -80,6 +80,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 // Custom React hook to consume session states cleanly across system views
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

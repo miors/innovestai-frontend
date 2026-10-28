@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
-import { useAuth } from "../context/AuthContext";
 import {
   LineChart,
   Line,
@@ -53,11 +52,14 @@ export const Dashboard = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWatchlist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!selected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHistory([]);
       return;
     }
@@ -84,9 +86,11 @@ export const Dashboard = () => {
   }, [selected]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNote(selected?.notes_content ?? "");
     setSavedNote(selected?.notes_content ?? "");
     setNoteStatus("idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   const [symbol, setSymbol] = useState("");
