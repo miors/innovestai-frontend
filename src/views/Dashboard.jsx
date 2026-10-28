@@ -30,6 +30,7 @@ export const Dashboard = () => {
   const [chartError, setChartError] = useState("");
   const [noteStatus, setNoteStatus] = useState("idle"); // idle | saving | saved | error
   const [savedNote, setSavedNote] = useState("");
+  const [prices, setPrices] = useState({}); // { [symbol]: { price, changePct } }
 
   const getToken = async () => {
     const {
@@ -55,6 +56,39 @@ export const Dashboard = () => {
   useEffect(() => {
     loadWatchlist();
   }, []);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+
+    const loadPrices = async () => {
+      const token = await getToken();
+      // Promise.allSettled so one bad symbol doesn't break the rest
+      const results = await Promise.allSettled(
+        items.map(async (item) => {
+          const res = await fetch(
+            `${API_URL}/market/price/${item.symbol}?type=${item.asset_type}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!res.ok) throw new Error("price failed");
+          return [item.symbol, await res.json()];
+        }),
+      );
+      if (cancelled) return;
+      setPrices(
+        Object.fromEntries(
+          results.filter((r) => r.status === "fulfilled").map((r) => r.value),
+        ),
+      );
+    };
+
+    loadPrices();
+    const id = setInterval(loadPrices, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [items]);
 
   useEffect(() => {
     if (!selected) {
@@ -190,18 +224,35 @@ export const Dashboard = () => {
           pauseOnHover
           gradient={false}
         >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelected(item)}
-              className="mx-6 text-sm font-semibold text-slate-200 hover:text-emerald-400"
-            >
-              {item.symbol}
-              <span className="ml-1 text-xs text-slate-400">
-                {item.asset_type}
-              </span>
-            </button>
-          ))}
+          {items.map((item) => {
+            const p = prices[item.symbol];
+            const up = (p?.changePct ?? 0) >= 0;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelected(item)}
+                className="mx-6 flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-emerald-400"
+              >
+                {item.symbol}
+                {p?.price != null ? (
+                  <>
+                    <span className="font-normal text-slate-300">
+                      ${p.price.toFixed(2)}
+                    </span>
+                    {p.changePct != null && (
+                      <span
+                        className={up ? "text-emerald-400" : "text-red-400"}
+                      >
+                        {up ? "▲" : "▼"} {Math.abs(p.changePct).toFixed(2)}%
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-500">—</span>
+                )}
+              </button>
+            );
+          })}
         </Marquee>
       )}
 
