@@ -11,6 +11,9 @@ import {
 } from "recharts";
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
+import MarqueeModule from "react-fast-marquee";
+
+const Marquee = MarqueeModule.default ?? MarqueeModule;
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -179,6 +182,28 @@ export const Dashboard = () => {
   return (
     <div className="min-h-screen p-4">
       <Header />
+
+      {items.length > 0 && (
+        <Marquee
+          className="mb-4 rounded border border-slate-700 bg-slate-800 py-2"
+          speed={40}
+          pauseOnHover
+          gradient={false}
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setSelected(item)}
+              className="mx-6 text-sm font-semibold text-slate-200 hover:text-emerald-400"
+            >
+              {item.symbol}
+              <span className="ml-1 text-xs text-slate-400">
+                {item.asset_type}
+              </span>
+            </button>
+          ))}
+        </Marquee>
+      )}
 
       <main className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <section className="rounded-lg bg-slate-800 p-4">
