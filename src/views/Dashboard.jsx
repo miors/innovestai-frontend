@@ -289,29 +289,50 @@ export const Dashboard = () => {
             </p>
           )}
           <ul className="space-y-1">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                onClick={() => setSelected(item)}
-                className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
-                  selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
-                }`}
-              >
-                <span>{item.symbol}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-slate-400">{item.asset_type}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item.id);
-                    }}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    ✕
-                  </button>
-                </span>
-              </li>
-            ))}
+            {items.map((item) => {
+              const p = prices[item.symbol];
+              return (
+                <li
+                  key={item.id}
+                  onClick={() => setSelected(item)}
+                  className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
+                    selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
+                  }`}
+                >
+                  <span className="w-16 font-semibold">{item.symbol}</span>
+                  <span className="flex flex-1 items-center justify-end gap-3">
+                    <span className="w-20 text-right font-mono tabular-nums text-slate-300">
+                      {p?.price != null ? `$${p.price.toFixed(2)}` : "—"}
+                    </span>
+                    <span
+                      className={`w-20 text-right font-mono tabular-nums text-sm ${
+                        p?.changePct == null
+                          ? "text-slate-500"
+                          : p.changePct >= 0
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                      }`}
+                    >
+                      {p?.changePct != null
+                        ? `${p.changePct >= 0 ? "▲" : "▼"} ${Math.abs(p.changePct).toFixed(2)}%`
+                        : ""}
+                    </span>
+                    <span className="w-12 text-xs uppercase text-slate-400">
+                      {item.asset_type}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.id);
+                      }}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
 
