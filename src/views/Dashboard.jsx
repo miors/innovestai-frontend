@@ -3,6 +3,8 @@ import { supabase } from "../../supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import {
   LineChart,
+  AreaChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -12,10 +14,12 @@ import {
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
+import toast from "react-hot-toast";
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
 const API_URL = import.meta.env.VITE_API_URL;
+const RANGES = { "1W": 7, "1M": 30, "3M": 90, "1Y": 365 };
 
 export const Dashboard = () => {
   const [items, setItems] = useState([]);
@@ -31,6 +35,8 @@ export const Dashboard = () => {
   const [noteStatus, setNoteStatus] = useState("idle"); // idle | saving | saved | error
   const [savedNote, setSavedNote] = useState("");
   const [prices, setPrices] = useState({}); // { [symbol]: { price, changePct } }
+  const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
+  const [chartType, setChartType] = useState("line"); // line | area
 
   const getToken = async () => {
     const {
@@ -128,7 +134,7 @@ export const Dashboard = () => {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    setError("");
+
     try {
       const res = await fetch(`${API_URL}/watchlist`, {
         method: "POST",
@@ -142,15 +148,15 @@ export const Dashboard = () => {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to add asset");
       }
+      toast.success(`${symbol.toUpperCase()} added`);
       setSymbol("");
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   };
 
   const handleDelete = async (id) => {
-    setError("");
     try {
       const res = await fetch(`${API_URL}/watchlist/${id}`, {
         method: "DELETE",
@@ -158,9 +164,10 @@ export const Dashboard = () => {
       });
       if (!res.ok) throw new Error("Failed to remove asset");
       if (selected?.id === id) setSelected(null);
+      toast.success("Asset removed");
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -182,10 +189,11 @@ export const Dashboard = () => {
       if (!res.ok) throw new Error("Failed to save note");
       setSavedNote(note);
       setNoteStatus("saved");
+      toast.success("Note saved");
       setTimeout(() => setNoteStatus("idle"), 2000);
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
       setNoteStatus("error");
     }
   };
@@ -212,6 +220,22 @@ export const Dashboard = () => {
       setAnalyzing(false);
     }
   };
+
+  const cutoff = Date.now() - RANGES[range] * 24 * 60 * 60 * 1000;
+  const chartData = history
+    .filter((p) => p.t >= cutoff)
+    .map((p) => ({
+      date: new Date(p.t).toLocaleDateString(),
+      close: p.c,
+    }));
+
+  const axes = (
+    <>
+      <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+      <YAxis stroke="#94a3b8" fontSize={11} domain={["auto", "auto"]} />
+      <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
+    </>
+  );
 
   return (
     <div className="min-h-screen p-4">
@@ -348,38 +372,67 @@ export const Dashboard = () => {
                   ? "Loading chart..."
                   : chartError
                     ? chartError
-                    : `${history.length} days loaded`}
+                    : `${chartData.length} data points`}
               </p>
+              <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex gap-1">
+                  {Object.keys(RANGES).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setRange(r)}
+                      className={`rounded px-2 py-1 text-xs ${
+                        range === r
+                          ? "bg-blue-600"
+                          : "bg-slate-700 hover:bg-slate-600"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {["line", "area"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setChartType(t)}
+                      className={`rounded px-2 py-1 text-xs capitalize ${
+                        chartType === t
+                          ? "bg-blue-600"
+                          : "bg-slate-700 hover:bg-slate-600"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div
                 className="mt-2 h-64"
                 hidden={loadingChart || history.length === 0}
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={history.map((p) => ({
-                      date: new Date(p.t).toLocaleDateString(),
-                      close: p.c,
-                    }))}
-                  >
-                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-                    <YAxis
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      domain={["auto", "auto"]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#1e293b",
-                        border: "none",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="close"
-                      stroke="#3b82f6"
-                      dot={false}
-                    />
-                  </LineChart>
+                  {chartType === "area" ? (
+                    <AreaChart data={chartData}>
+                      {axes}
+                      <Area
+                        type="monotone"
+                        dataKey="close"
+                        stroke="#3b82f6"
+                        fill="#3b82f6"
+                        fillOpacity={0.2}
+                      />
+                    </AreaChart>
+                  ) : (
+                    <LineChart data={chartData}>
+                      {axes}
+                      <Line
+                        type="monotone"
+                        dataKey="close"
+                        stroke="#3b82f6"
+                        dot={false}
+                      />
+                    </LineChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </div>

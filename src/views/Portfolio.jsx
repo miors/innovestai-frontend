@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { Header } from "../components/Header";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import toast from "react-hot-toast";
 
 const COLORS = [
   "#3b82f6",
@@ -85,9 +86,10 @@ export const Portfolio = () => {
       });
       if (!res.ok) throw new Error("Failed to save holding");
       await loadItems();
+      toast.success("Holding saved");
       return true;
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
       return false;
     }
   };
