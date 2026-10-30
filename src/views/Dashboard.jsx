@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
 import {
   LineChart,
   Line,
@@ -11,6 +10,7 @@ import {
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
+import { getToken } from "../helper/supabase";
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
@@ -29,13 +29,6 @@ export const Dashboard = () => {
   const [chartError, setChartError] = useState("");
   const [noteStatus, setNoteStatus] = useState("idle"); // idle | saving | saved | error
   const [savedNote, setSavedNote] = useState("");
-
-  const getToken = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session.access_token;
-  };
 
   const loadWatchlist = async () => {
     try {

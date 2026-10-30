@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../../supabaseClient";
+import { getToken } from "../helper/supabase";
 import { Header } from "../components/Header";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -8,13 +8,6 @@ export const Portfolio = () => {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const getToken = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session.access_token;
-  };
 
   const loadItems = async () => {
     try {
