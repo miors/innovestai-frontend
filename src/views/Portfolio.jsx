@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "../../supabaseClient";
+import { getToken } from "../helper/supabase";
 import { Header } from "../components/Header";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
@@ -22,13 +21,6 @@ export const Portfolio = () => {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const getToken = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session.access_token;
-  };
 
   const loadItems = async () => {
     try {
@@ -66,7 +58,9 @@ export const Portfolio = () => {
   }, [items]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (id, quantity, buyPrice) => {

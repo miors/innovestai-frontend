@@ -5,7 +5,6 @@ import {
   Route,
 } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { useAuth } from "./context/AuthContext";
 import { Toaster } from "react-hot-toast";
 
 // Import custom views/pages

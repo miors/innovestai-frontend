@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
-import { useAuth } from "../context/AuthContext";
 import {
   LineChart,
   AreaChart,
@@ -14,7 +12,11 @@ import {
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
+<<<<<<< HEAD
 import toast from "react-hot-toast";
+=======
+import { getToken } from "../helper/supabase";
+>>>>>>> origin/main
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
@@ -38,13 +40,6 @@ export const Dashboard = () => {
   const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
   const [chartType, setChartType] = useState("line"); // line | area
 
-  const getToken = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session.access_token;
-  };
-
   const loadWatchlist = async () => {
     try {
       const res = await fetch(`${API_URL}/watchlist`, {
@@ -60,7 +55,9 @@ export const Dashboard = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWatchlist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -98,6 +95,7 @@ export const Dashboard = () => {
 
   useEffect(() => {
     if (!selected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHistory([]);
       return;
     }
@@ -124,9 +122,11 @@ export const Dashboard = () => {
   }, [selected]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNote(selected?.notes_content ?? "");
     setSavedNote(selected?.notes_content ?? "");
     setNoteStatus("idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   const [symbol, setSymbol] = useState("");
