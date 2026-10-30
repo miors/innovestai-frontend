@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   LineChart,
+  AreaChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -10,11 +12,13 @@ import {
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
+import toast from "react-hot-toast";
 import { getToken } from "../helper/supabase";
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
 const API_URL = import.meta.env.VITE_API_URL;
+const RANGES = { "1W": 7, "1M": 30, "3M": 90, "1Y": 365 };
 
 export const Dashboard = () => {
   const [items, setItems] = useState([]);
@@ -29,6 +33,9 @@ export const Dashboard = () => {
   const [chartError, setChartError] = useState("");
   const [noteStatus, setNoteStatus] = useState("idle"); // idle | saving | saved | error
   const [savedNote, setSavedNote] = useState("");
+  const [prices, setPrices] = useState({}); // { [symbol]: { price, changePct } }
+  const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
+  const [chartType, setChartType] = useState("line"); // line | area
 
   const loadWatchlist = async () => {
     try {
@@ -47,8 +54,40 @@ export const Dashboard = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWatchlist();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+
+    const loadPrices = async () => {
+      const token = await getToken();
+      // Promise.allSettled so one bad symbol doesn't break the rest
+      const results = await Promise.allSettled(
+        items.map(async (item) => {
+          const res = await fetch(
+            `${API_URL}/market/price/${item.symbol}?type=${item.asset_type}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!res.ok) throw new Error("price failed");
+          return [item.symbol, await res.json()];
+        }),
+      );
+      if (cancelled) return;
+      setPrices(
+        Object.fromEntries(
+          results.filter((r) => r.status === "fulfilled").map((r) => r.value),
+        ),
+      );
+    };
+
+    loadPrices();
+    const id = setInterval(loadPrices, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [items]);
 
   useEffect(() => {
     if (!selected) {
@@ -91,7 +130,7 @@ export const Dashboard = () => {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    setError("");
+
     try {
       const res = await fetch(`${API_URL}/watchlist`, {
         method: "POST",
@@ -105,15 +144,15 @@ export const Dashboard = () => {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to add asset");
       }
+      toast.success(`${symbol.toUpperCase()} added`);
       setSymbol("");
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   };
 
   const handleDelete = async (id) => {
-    setError("");
     try {
       const res = await fetch(`${API_URL}/watchlist/${id}`, {
         method: "DELETE",
@@ -121,9 +160,10 @@ export const Dashboard = () => {
       });
       if (!res.ok) throw new Error("Failed to remove asset");
       if (selected?.id === id) setSelected(null);
+      toast.success("Asset removed");
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -145,10 +185,11 @@ export const Dashboard = () => {
       if (!res.ok) throw new Error("Failed to save note");
       setSavedNote(note);
       setNoteStatus("saved");
+      toast.success("Note saved");
       setTimeout(() => setNoteStatus("idle"), 2000);
       loadWatchlist();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
       setNoteStatus("error");
     }
   };
@@ -176,6 +217,24 @@ export const Dashboard = () => {
     }
   };
 
+  const [now] = useState(() => Date.now()); // lazy initializer runs once
+
+  const cutoff = now - RANGES[range] * 24 * 60 * 60 * 1000;
+  const chartData = history
+    .filter((p) => p.t >= cutoff)
+    .map((p) => ({
+      date: new Date(p.t).toLocaleDateString(),
+      close: p.c,
+    }));
+
+  const axes = (
+    <>
+      <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+      <YAxis stroke="#94a3b8" fontSize={11} domain={["auto", "auto"]} />
+      <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
+    </>
+  );
+
   return (
     <div className="min-h-screen p-4">
       <Header />
@@ -187,18 +246,35 @@ export const Dashboard = () => {
           pauseOnHover
           gradient={false}
         >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelected(item)}
-              className="mx-6 text-sm font-semibold text-slate-200 hover:text-emerald-400"
-            >
-              {item.symbol}
-              <span className="ml-1 text-xs text-slate-400">
-                {item.asset_type}
-              </span>
-            </button>
-          ))}
+          {items.map((item) => {
+            const p = prices[item.symbol];
+            const up = (p?.changePct ?? 0) >= 0;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelected(item)}
+                className="mx-6 flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-emerald-400"
+              >
+                {item.symbol}
+                {p?.price != null ? (
+                  <>
+                    <span className="font-normal text-slate-300">
+                      ${p.price.toFixed(2)}
+                    </span>
+                    {p.changePct != null && (
+                      <span
+                        className={up ? "text-emerald-400" : "text-red-400"}
+                      >
+                        {up ? "▲" : "▼"} {Math.abs(p.changePct).toFixed(2)}%
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-500">—</span>
+                )}
+              </button>
+            );
+          })}
         </Marquee>
       )}
 
@@ -235,29 +311,50 @@ export const Dashboard = () => {
             </p>
           )}
           <ul className="space-y-1">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                onClick={() => setSelected(item)}
-                className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
-                  selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
-                }`}
-              >
-                <span>{item.symbol}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-slate-400">{item.asset_type}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item.id);
-                    }}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    ✕
-                  </button>
-                </span>
-              </li>
-            ))}
+            {items.map((item) => {
+              const p = prices[item.symbol];
+              return (
+                <li
+                  key={item.id}
+                  onClick={() => setSelected(item)}
+                  className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
+                    selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
+                  }`}
+                >
+                  <span className="w-16 font-semibold">{item.symbol}</span>
+                  <span className="flex flex-1 items-center justify-end gap-3">
+                    <span className="w-20 text-right font-mono tabular-nums text-slate-300">
+                      {p?.price != null ? `$${p.price.toFixed(2)}` : "—"}
+                    </span>
+                    <span
+                      className={`w-20 text-right font-mono tabular-nums text-sm ${
+                        p?.changePct == null
+                          ? "text-slate-500"
+                          : p.changePct >= 0
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                      }`}
+                    >
+                      {p?.changePct != null
+                        ? `${p.changePct >= 0 ? "▲" : "▼"} ${Math.abs(p.changePct).toFixed(2)}%`
+                        : ""}
+                    </span>
+                    <span className="w-12 text-xs uppercase text-slate-400">
+                      {item.asset_type}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item.id);
+                      }}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
 
@@ -273,38 +370,67 @@ export const Dashboard = () => {
                   ? "Loading chart..."
                   : chartError
                     ? chartError
-                    : `${history.length} days loaded`}
+                    : `${chartData.length} data points`}
               </p>
+              <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex gap-1">
+                  {Object.keys(RANGES).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setRange(r)}
+                      className={`rounded px-2 py-1 text-xs ${
+                        range === r
+                          ? "bg-blue-600"
+                          : "bg-slate-700 hover:bg-slate-600"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {["line", "area"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setChartType(t)}
+                      className={`rounded px-2 py-1 text-xs capitalize ${
+                        chartType === t
+                          ? "bg-blue-600"
+                          : "bg-slate-700 hover:bg-slate-600"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div
                 className="mt-2 h-64"
                 hidden={loadingChart || history.length === 0}
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={history.map((p) => ({
-                      date: new Date(p.t).toLocaleDateString(),
-                      close: p.c,
-                    }))}
-                  >
-                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-                    <YAxis
-                      stroke="#94a3b8"
-                      fontSize={11}
-                      domain={["auto", "auto"]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#1e293b",
-                        border: "none",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="close"
-                      stroke="#3b82f6"
-                      dot={false}
-                    />
-                  </LineChart>
+                  {chartType === "area" ? (
+                    <AreaChart data={chartData}>
+                      {axes}
+                      <Area
+                        type="monotone"
+                        dataKey="close"
+                        stroke="#3b82f6"
+                        fill="#3b82f6"
+                        fillOpacity={0.2}
+                      />
+                    </AreaChart>
+                  ) : (
+                    <LineChart data={chartData}>
+                      {axes}
+                      <Line
+                        type="monotone"
+                        dataKey="close"
+                        stroke="#3b82f6"
+                        dot={false}
+                      />
+                    </LineChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </div>

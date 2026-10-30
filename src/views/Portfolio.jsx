@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { getToken } from "../helper/supabase";
 import { Header } from "../components/Header";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import toast from "react-hot-toast";
+
+const COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
+];
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -38,7 +51,8 @@ export const Portfolio = () => {
         const data = await res.json();
         setPrices((prev) => ({ ...prev, [item.id]: data.price }));
       } catch {
-        // leave the price blank if the request fails
+        //need to delete id, so that a failed price fetch can be retried
+        requested.current.delete(item.id);
       }
     });
   }, [items]);
@@ -46,7 +60,6 @@ export const Portfolio = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (id, quantity, buyPrice) => {
@@ -66,9 +79,10 @@ export const Portfolio = () => {
       });
       if (!res.ok) throw new Error("Failed to save holding");
       await loadItems();
+      toast.success("Holding saved");
       return true;
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
       return false;
     }
   };
@@ -83,6 +97,11 @@ export const Portfolio = () => {
   );
   const totalPL = totalValue - totalCost;
   const totalPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
+
+  const allocation = holdings.map((i) => ({
+    name: i.symbol,
+    value: i.quantity * prices[i.id],
+  }));
 
   return (
     <div className="min-h-screen p-4">
@@ -115,6 +134,33 @@ export const Portfolio = () => {
             </p>
           </div>
         </div>
+
+        {allocation.length > 0 && (
+          <div className="mb-4 rounded-lg bg-slate-800 p-3">
+            <p className="mb-2 text-xs text-slate-400">Allocation</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={allocation}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={50}
+                    outerRadius={90}
+                    label={({ name, percent }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                  >
+                    {allocation.map((_, idx) => (
+                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => `$${Number(v).toFixed(2)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <p className="text-sm text-slate-400">Loading portfolio...</p>
@@ -179,6 +225,11 @@ const HoldingRow = ({ item, price, onSave }) => {
       ? (price - item.buy_price) * item.quantity
       : null;
 
+  const plPct =
+    hasHolding && price != null && item.buy_price > 0
+      ? ((price - item.buy_price) / item.buy_price) * 100
+      : null;
+
   return (
     <tr className="border-t border-slate-700">
       <td className="p-2 font-semibold">{item.symbol}</td>
@@ -204,7 +255,9 @@ const HoldingRow = ({ item, price, onSave }) => {
       <td
         className={`p-2 ${pl > 0 ? "text-green-400" : pl < 0 ? "text-red-400" : ""}`}
       >
-        {pl != null ? `${pl >= 0 ? "+" : ""}$${pl.toFixed(2)}` : "—"}
+        {pl != null
+          ? `${pl >= 0 ? "+" : ""}$${pl.toFixed(2)}${plPct != null ? ` (${plPct.toFixed(1)}%)` : ""}`
+          : "—"}
       </td>
       <td className="p-2">
         <button
