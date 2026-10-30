@@ -12,11 +12,8 @@ import {
 import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
-<<<<<<< HEAD
 import toast from "react-hot-toast";
-=======
 import { getToken } from "../helper/supabase";
->>>>>>> origin/main
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
@@ -57,7 +54,6 @@ export const Dashboard = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWatchlist();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -221,7 +217,9 @@ export const Dashboard = () => {
     }
   };
 
-  const cutoff = Date.now() - RANGES[range] * 24 * 60 * 60 * 1000;
+  const [now] = useState(() => Date.now()); // lazy initializer runs once
+
+  const cutoff = now - RANGES[range] * 24 * 60 * 60 * 1000;
   const chartData = history
     .filter((p) => p.t >= cutoff)
     .map((p) => ({

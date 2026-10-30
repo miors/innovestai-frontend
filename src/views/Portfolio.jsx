@@ -60,7 +60,6 @@ export const Portfolio = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (id, quantity, buyPrice) => {
