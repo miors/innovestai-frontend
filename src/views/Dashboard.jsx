@@ -173,6 +173,35 @@ export const Dashboard = () => {
 
   const [symbol, setSymbol] = useState("");
   const [assetType, setAssetType] = useState("stock");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    const q = symbol.trim();
+    if (q.length < 1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/market/search?q=${encodeURIComponent(q)}&type=${assetType}`,
+          { headers: { Authorization: `Bearer ${await getToken()}` } },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setSuggestions(data.results);
+      } catch {
+        // suggestions are optional; ignore failures
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [symbol, assetType]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -251,7 +280,14 @@ export const Dashboard = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${await getToken()}`,
         },
-        body: JSON.stringify({ portfolioContext: items }),
+        body: JSON.stringify({
+          portfolioContext: items.map((i) => ({
+            ...i,
+            quantity: i.quantity == null ? null : Number(i.quantity),
+            buy_price: i.buy_price == null ? null : Number(i.buy_price),
+            current_price: prices[i.symbol]?.price ?? null,
+          })),
+        }),
       });
       if (!res.ok) throw new Error("Failed to generate analysis");
       const data = await res.json();
@@ -335,13 +371,42 @@ export const Dashboard = () => {
         <section className="rounded-lg bg-slate-800 p-4">
           <h2 className="mb-2 font-semibold">Watchlist</h2>
           <form onSubmit={handleAdd} className="mb-3 flex gap-2">
-            <input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              placeholder="Symbol (e.g. TSLA)"
-              required
-              className="w-full rounded bg-slate-700 px-2 py-1"
-            />
+            <div className="relative w-full">
+              <input
+                value={symbol}
+                onChange={(e) => {
+                  setSymbol(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Symbol (e.g. TSLA)"
+                required
+                autoComplete="off"
+                className="w-full rounded bg-slate-700 px-2 py-1"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded border border-slate-600 bg-slate-800 shadow-lg">
+                  {suggestions.map((s) => (
+                    <li key={s.symbol}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          setSymbol(s.symbol);
+                          setShowSuggestions(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-2 py-1 text-left text-sm hover:bg-slate-700"
+                      >
+                        <span className="font-semibold">{s.symbol}</span>
+                        <span className="truncate text-xs text-slate-400">
+                          {s.name}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <select
               value={assetType}
               onChange={(e) => setAssetType(e.target.value)}
