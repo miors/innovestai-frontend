@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import {
   LineChart,
   AreaChart,
+  ComposedChart,
+  Bar,
   Area,
   Line,
   XAxis,
@@ -33,6 +35,36 @@ const timeAgo = (iso) => {
   return `${Math.floor(mins / 1440)}d ago`;
 };
 
+const Candle = ({ x, y, width, height, payload }) => {
+  const { open, close, high, low } = payload;
+  const up = close >= open;
+  const color = up ? "#34d399" : "#f87171";
+  // y and height describe the [low, high] bar, so scale the rest from them
+  const ratio = high === low ? 0 : height / (high - low);
+  const bodyTop = y + (high - Math.max(open, close)) * ratio;
+  const bodyHeight = Math.max(Math.abs(open - close) * ratio, 1);
+  const cx = x + width / 2;
+  return (
+    <g>
+      <line
+        x1={cx}
+        x2={cx}
+        y1={y}
+        y2={y + height}
+        stroke={color}
+        strokeWidth={1}
+      />
+      <rect
+        x={x + width * 0.15}
+        y={bodyTop}
+        width={width * 0.7}
+        height={bodyHeight}
+        fill={color}
+      />
+    </g>
+  );
+};
+
 export const Dashboard = () => {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -49,7 +81,7 @@ export const Dashboard = () => {
   const [prices, setPrices] = useState({}); // { [symbol]: { price, changePct } }
   const [news, setNews] = useState({}); // { [symbol]: Article[] }
   const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
-  const [chartType, setChartType] = useState("line"); // line | area
+  const [chartType, setChartType] = useState("line"); // line | area | candle
   const [newsFilter, setNewsFilter] = useState("ALL");
 
   const loadWatchlist = async () => {
@@ -307,13 +339,25 @@ export const Dashboard = () => {
     .map((p) => ({
       date: new Date(p.t).toLocaleDateString(),
       close: p.c,
+      open: p.o,
+      high: p.h,
+      low: p.l,
+      range: [p.l, p.h], // Bar needs a [min, max] value so the axis fits the full wick
     }));
 
   const axes = (
     <>
       <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
       <YAxis stroke="#94a3b8" fontSize={11} domain={["auto", "auto"]} />
-      <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
+      <Tooltip
+        contentStyle={{ background: "#1e293b", border: "none" }}
+        formatter={(value, name, item) => {
+          const d = item.payload;
+          return name === "range"
+            ? [`O ${d.open}  H ${d.high}  L ${d.low}  C ${d.close}`, "OHLC"]
+            : [value, name];
+        }}
+      />
     </>
   );
 
@@ -512,7 +556,7 @@ export const Dashboard = () => {
                   ))}
                 </div>
                 <div className="flex gap-1">
-                  {["line", "area"].map((t) => (
+                  {["line", "area", "candle"].map((t) => (
                     <button
                       key={t}
                       onClick={() => setChartType(t)}
@@ -532,7 +576,16 @@ export const Dashboard = () => {
                 hidden={loadingChart || history.length === 0}
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  {chartType === "area" ? (
+                  {chartType === "candle" ? (
+                    <ComposedChart data={chartData}>
+                      {axes}
+                      <Bar
+                        dataKey="range"
+                        shape={<Candle />}
+                        isAnimationActive={false}
+                      />
+                    </ComposedChart>
+                  ) : chartType === "area" ? (
                     <AreaChart data={chartData}>
                       {axes}
                       <Area
