@@ -369,7 +369,15 @@ export const Dashboard = () => {
         formatter={(value, name, item) => {
           const d = item.payload;
           return name === "range"
-            ? [`O ${d.open}  H ${d.high}  L ${d.low}  C ${d.close}`, "OHLC"]
+            ? [
+                <div key="ohlc" className="text-right font-mono tabular-nums">
+                  <div>Open: {d.open}</div>
+                  <div>High: {d.high}</div>
+                  <div>Low: {d.low}</div>
+                  <div>Close: {d.close}</div>
+                </div>,
+                "OHLC",
+              ]
             : [value, name];
         }}
       />
