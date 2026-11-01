@@ -20,6 +20,19 @@ const Marquee = MarqueeModule.default ?? MarqueeModule;
 const API_URL = import.meta.env.VITE_API_URL;
 const RANGES = { "1W": 7, "1M": 30, "3M": 90, "1Y": 365 };
 
+const SENTIMENT_STYLES = {
+  positive: "border-emerald-500 bg-emerald-500/15 text-emerald-300",
+  negative: "border-red-500 bg-red-500/15 text-red-300",
+  neutral: "border-slate-500 bg-slate-500/15 text-slate-300",
+};
+
+const timeAgo = (iso) => {
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(iso)) / 60000));
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+};
+
 export const Dashboard = () => {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -37,6 +50,7 @@ export const Dashboard = () => {
   const [news, setNews] = useState({}); // { [symbol]: Article[] }
   const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
   const [chartType, setChartType] = useState("line"); // line | area
+  const [newsFilter, setNewsFilter] = useState("ALL");
 
   const loadWatchlist = async () => {
     try {
@@ -267,6 +281,10 @@ export const Dashboard = () => {
     </>
   );
 
+  const newsList = Object.entries(news)
+    .filter(([sym]) => newsFilter === "ALL" || sym === newsFilter)
+    .flatMap(([sym, articles]) => articles.map((a) => ({ ...a, symbol: sym })))
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
   return (
     <div className="min-h-screen p-4">
       <Header />
@@ -284,7 +302,10 @@ export const Dashboard = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setSelected(item)}
+                onClick={() => {
+                  setSelected(item);
+                  setNewsFilter(item.symbol);
+                }}
                 className="mx-6 flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-emerald-400"
               >
                 {item.symbol}
@@ -348,7 +369,10 @@ export const Dashboard = () => {
               return (
                 <li
                   key={item.id}
-                  onClick={() => setSelected(item)}
+                  onClick={() => {
+                    setSelected(item);
+                    setNewsFilter(item.symbol);
+                  }}
                   className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
                     selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
                   }`}
@@ -530,6 +554,66 @@ export const Dashboard = () => {
           </div>
         </section>
       </main>
+      {items.length > 0 && (
+        <section id="news-section" className="mt-4 rounded-lg bg-slate-800 p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h2 className="mr-2 font-semibold">Latest News</h2>
+            {["ALL", ...items.map((i) => i.symbol)].map((s) => (
+              <button
+                key={s}
+                onClick={() => setNewsFilter(s)}
+                className={`rounded-full px-3 py-1 text-xs ${
+                  newsFilter === s
+                    ? "bg-blue-600"
+                    : "bg-slate-700 hover:bg-slate-600"
+                }`}
+              >
+                {s === "ALL" ? "All" : s}
+              </button>
+            ))}
+          </div>
+
+          {newsList.length === 0 ? (
+            <p className="text-sm text-slate-400">No news available.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {newsList.map((a) => (
+                <a
+                  key={`${a.symbol}-${a.url}`}
+                  href={a.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`block rounded border-l-4 bg-slate-700 p-3 transition hover:bg-slate-600 ${
+                    (
+                      SENTIMENT_STYLES[a.sentiment] ?? SENTIMENT_STYLES.neutral
+                    ).split(" ")[0]
+                  }`}
+                >
+                  <div className="mb-1 flex items-center gap-2 text-xs">
+                    <span className="rounded bg-blue-600 px-2 py-0.5 font-semibold">
+                      {a.symbol}
+                    </span>
+                    {a.sentiment && (
+                      <span
+                        className={`rounded border px-2 py-0.5 capitalize ${
+                          SENTIMENT_STYLES[a.sentiment] ??
+                          SENTIMENT_STYLES.neutral
+                        }`}
+                      >
+                        {a.sentiment}
+                      </span>
+                    )}
+                  </div>
+                  <p className="line-clamp-2 text-sm font-medium">{a.title}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {a.publisher} · {timeAgo(a.publishedAt)}
+                  </p>
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };
