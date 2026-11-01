@@ -351,13 +351,19 @@ export const Dashboard = () => {
       <YAxis stroke="#94a3b8" fontSize={11} domain={["auto", "auto"]} />
       <Tooltip
         contentStyle={{
-          background: "rgba(30, 41, 59, 0.75)",
+          background: "rgba(30, 41, 59, 0.1)",
           border: "1px solid rgba(148, 163, 184, 0.3)",
           borderRadius: 6,
           backdropFilter: "blur(4px)",
         }}
-        labelStyle={{ color: "#e2e8f0" }}
-        itemStyle={{ color: "#f1f5f9" }}
+        itemStyle={{
+          color: "#f1f5f9",
+          textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+        }}
+        labelStyle={{
+          color: "#e2e8f0",
+          textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+        }}
         formatter={(value, name, item) => {
           const d = item.payload;
           return name === "range"
