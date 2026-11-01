@@ -546,13 +546,13 @@ export const Dashboard = () => {
                     ? chartError
                     : `${chartData.length} data points`}
               </p>
-              <div className="mt-2 flex items-center justify-between">
-                <div className="mt-2 flex gap-1">
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <div className="flex gap-1">
                   {Object.keys(RANGES).map((r) => (
                     <button
                       key={r}
                       onClick={() => setRange(r)}
-                      className={`rounded px-2 py-1 text-xs ${
+                      className={`shrink-0 rounded px-2 py-1 text-xs ${
                         range === r
                           ? "bg-blue-600"
                           : "bg-slate-700 hover:bg-slate-600"
@@ -567,7 +567,7 @@ export const Dashboard = () => {
                     <button
                       key={t}
                       onClick={() => setChartType(t)}
-                      className={`rounded px-2 py-1 text-xs capitalize ${
+                      className={`shrink-0 rounded px-2 py-1 text-xs capitalize ${
                         chartType === t
                           ? "bg-blue-600"
                           : "bg-slate-700 hover:bg-slate-600"
