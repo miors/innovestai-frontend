@@ -438,17 +438,19 @@ export const Dashboard = () => {
                     setSelected(item);
                     setNewsFilter(item.symbol);
                   }}
-                  className={`flex cursor-pointer items-center justify-between rounded px-3 py-2 ${
+                  className={`flex cursor-pointer items-center justify-between gap-2 rounded px-3 py-2 ${
                     selected?.id === item.id ? "bg-blue-700" : "bg-slate-700"
                   }`}
                 >
-                  <span className="w-16 font-semibold">{item.symbol}</span>
-                  <span className="flex flex-1 items-center justify-end gap-3">
-                    <span className="w-20 text-right font-mono tabular-nums text-slate-300">
+                  <span className="w-14 shrink-0 truncate font-semibold">
+                    {item.symbol}
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
+                    <span className="shrink-0 whitespace-nowrap text-right font-mono tabular-nums text-slate-300">
                       {p?.price != null ? `$${p.price.toFixed(2)}` : "—"}
                     </span>
                     <span
-                      className={`w-20 text-right font-mono tabular-nums text-sm ${
+                      className={`w-[4.5rem] shrink-0 whitespace-nowrap text-right font-mono text-sm tabular-nums ${
                         p?.changePct == null
                           ? "text-slate-500"
                           : p.changePct >= 0
@@ -460,15 +462,15 @@ export const Dashboard = () => {
                         ? `${p.changePct >= 0 ? "▲" : "▼"} ${Math.abs(p.changePct).toFixed(2)}%`
                         : ""}
                     </span>
-                    <span className="w-12 text-xs uppercase text-slate-400">
-                      {item.asset_type}
+                    <span className="hidden shrink-0 rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-300 min-[480px]:inline-block">
+                      {item.asset_type === "crypto" ? "CRY" : "STK"}
                     </span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(item.id);
                       }}
-                      className="text-red-400 hover:text-red-300"
+                      className="shrink-0 text-red-400 hover:text-red-300"
                     >
                       ✕
                     </button>
