@@ -57,6 +57,14 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const loginWithOAuth = async (provider) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider, // "google" | "github"
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    if (error) throw error;
+  };
+
   // Operational Action 3: Expire active tokens and destroy session logs
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -64,13 +72,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Expose system parameters down the state trees
-  const value = {
-    user,
-    loading,
-    signUp,
-    login,
-    logout,
-  };
+  const value = { user, loading, signUp, login, loginWithOAuth, logout };
 
   return (
     <AuthContext.Provider value={value}>

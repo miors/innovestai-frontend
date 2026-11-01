@@ -4,13 +4,22 @@ import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
 
 export const Auth = () => {
-  const { login, signUp } = useAuth();
+  const { login, signUp, loginWithOAuth } = useAuth();
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const handleOAuth = async (provider) => {
+    setError("");
+    try {
+      await loginWithOAuth(provider);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,6 +88,18 @@ export const Auth = () => {
           className="w-full rounded bg-blue-600 py-2 hover:bg-blue-500"
         >
           {isSignUp ? "Sign up" : "Log in"}
+        </button>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="h-px flex-1 bg-slate-700" />
+          or
+          <span className="h-px flex-1 bg-slate-700" />
+        </div>
+        <button
+          type="button"
+          onClick={() => handleOAuth("google")}
+          className="w-full rounded bg-slate-700 py-2 hover:bg-slate-600"
+        >
+          Continue with Google
         </button>
         {error && <p className="text-sm text-red-400">{error}</p>}
         {message && <p className="text-sm text-green-400">{message}</p>}
