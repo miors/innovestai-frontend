@@ -350,7 +350,14 @@ export const Dashboard = () => {
       <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
       <YAxis stroke="#94a3b8" fontSize={11} domain={["auto", "auto"]} />
       <Tooltip
-        contentStyle={{ background: "#1e293b", border: "none" }}
+        contentStyle={{
+          background: "rgba(30, 41, 59, 0.75)",
+          border: "1px solid rgba(148, 163, 184, 0.3)",
+          borderRadius: 6,
+          backdropFilter: "blur(4px)",
+        }}
+        labelStyle={{ color: "#e2e8f0" }}
+        itemStyle={{ color: "#f1f5f9" }}
         formatter={(value, name, item) => {
           const d = item.payload;
           return name === "range"
