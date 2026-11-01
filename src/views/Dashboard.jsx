@@ -34,6 +34,7 @@ export const Dashboard = () => {
   const [noteStatus, setNoteStatus] = useState("idle"); // idle | saving | saved | error
   const [savedNote, setSavedNote] = useState("");
   const [prices, setPrices] = useState({}); // { [symbol]: { price, changePct } }
+  const [news, setNews] = useState({}); // { [symbol]: Article[] }
   const [range, setRange] = useState("1Y"); // 1W | 1M | 3M | 1Y
   const [chartType, setChartType] = useState("line"); // line | area
 
@@ -86,6 +87,37 @@ export const Dashboard = () => {
     return () => {
       cancelled = true;
       clearInterval(id);
+    };
+  }, [items]);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+
+    const loadNews = async () => {
+      const token = await getToken();
+      const results = await Promise.allSettled(
+        items.map(async (item) => {
+          const res = await fetch(
+            `${API_URL}/market/news/${item.symbol}?type=${item.asset_type}&limit=3`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!res.ok) throw new Error("news failed");
+          const data = await res.json();
+          return [item.symbol, data.results];
+        }),
+      );
+      if (cancelled) return;
+      setNews(
+        Object.fromEntries(
+          results.filter((r) => r.status === "fulfilled").map((r) => r.value),
+        ),
+      );
+    };
+
+    loadNews();
+    return () => {
+      cancelled = true;
     };
   }, [items]);
 
