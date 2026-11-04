@@ -15,11 +15,10 @@ import { Header } from "../components/Header";
 import { AiAnalysis } from "../components/AiAnalysis";
 import MarqueeModule from "react-fast-marquee";
 import toast from "react-hot-toast";
-import { getToken } from "../helper/supabase";
+import { apiFetch } from "../helper/api-fetch";
 
 const Marquee = MarqueeModule.default ?? MarqueeModule;
 
-const API_URL = import.meta.env.VITE_API_URL;
 const RANGES = { "1W": 7, "1M": 30, "3M": 90, "1Y": 365 };
 
 const SENTIMENT_STYLES = {
@@ -86,11 +85,9 @@ export const Dashboard = () => {
 
   const loadWatchlist = async () => {
     try {
-      const res = await fetch(`${API_URL}/watchlist`, {
-        headers: { Authorization: `Bearer ${await getToken()}` },
-      });
-      if (!res.ok) throw new Error("Failed to load watchlist");
-      setItems(await res.json());
+      const jsonRes = await apiFetch(`watchlist`, "Failed to load watchlist");
+
+      setItems(jsonRes);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,16 +105,15 @@ export const Dashboard = () => {
     let cancelled = false;
 
     const loadPrices = async () => {
-      const token = await getToken();
       // Promise.allSettled so one bad symbol doesn't break the rest
       const results = await Promise.allSettled(
         items.map(async (item) => {
-          const res = await fetch(
-            `${API_URL}/market/price/${item.symbol}?type=${item.asset_type}`,
-            { headers: { Authorization: `Bearer ${token}` } },
+          const jsonRes = await apiFetch(
+            `market/price/${item.symbol}?type=${item.asset_type}`,
+            "Price failed",
           );
-          if (!res.ok) throw new Error("price failed");
-          return [item.symbol, await res.json()];
+
+          return [item.symbol, jsonRes];
         }),
       );
       if (cancelled) return;
@@ -141,15 +137,13 @@ export const Dashboard = () => {
     let cancelled = false;
 
     const loadNews = async () => {
-      const token = await getToken();
       const results = await Promise.allSettled(
         items.map(async (item) => {
-          const res = await fetch(
-            `${API_URL}/market/news/${item.symbol}?type=${item.asset_type}&limit=3`,
-            { headers: { Authorization: `Bearer ${token}` } },
+          const data = await apiFetch(
+            `market/news/${item.symbol}?type=${item.asset_type}&limit=3`,
+            "News failed",
           );
-          if (!res.ok) throw new Error("news failed");
-          const data = await res.json();
+
           return [item.symbol, data.results];
         }),
       );
@@ -178,13 +172,13 @@ export const Dashboard = () => {
       setChartError("");
       setHistory([]);
       try {
-        const res = await fetch(
-          `${API_URL}/market/stocks/history/${selected.symbol}?type=${selected.asset_type}`,
-          { headers: { Authorization: `Bearer ${await getToken()}` } },
+        const jsonRes = await apiFetch(
+          `market/stocks/history/${selected.symbol}?type=${selected.asset_type}`,
+          "Failed to load price history",
         );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok)
-          throw new Error(data.error || "Failed to load price history");
+
+        const data = jsonRes ?? {};
+
         setHistory(data.results ?? []);
       } catch (err) {
         setChartError(err.message);
@@ -218,12 +212,11 @@ export const Dashboard = () => {
     let cancelled = false;
     const id = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `${API_URL}/market/search?q=${encodeURIComponent(q)}&type=${assetType}`,
-          { headers: { Authorization: `Bearer ${await getToken()}` } },
+        const data = await apiFetch(
+          `market/search?q=${encodeURIComponent(q)}&type=${assetType}`,
+          "Failed to search",
         );
-        if (!res.ok) return;
-        const data = await res.json();
+
         if (!cancelled) setSuggestions(data.results);
       } catch {
         // suggestions are optional; ignore failures
@@ -239,18 +232,14 @@ export const Dashboard = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch(`${API_URL}/watchlist`, {
+      await apiFetch(`watchlist`, "Failed to add asset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${await getToken()}`,
         },
         body: JSON.stringify({ symbol, asset_type: assetType }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to add asset");
-      }
+
       toast.success(`${symbol.toUpperCase()} added`);
       setSymbol("");
       loadWatchlist();
@@ -261,11 +250,10 @@ export const Dashboard = () => {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/watchlist/${id}`, {
+      await apiFetch(`watchlist/${id}`, "Failed to remove asset", {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${await getToken()}` },
       });
-      if (!res.ok) throw new Error("Failed to remove asset");
+
       if (selected?.id === id) setSelected(null);
       toast.success("Asset removed");
       loadWatchlist();
@@ -278,18 +266,17 @@ export const Dashboard = () => {
     setError("");
     setNoteStatus("saving");
     try {
-      const res = await fetch(`${API_URL}/watchlist/notes`, {
+      await apiFetch(`watchlist/notes`, "Failed to save note", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${await getToken()}`,
         },
         body: JSON.stringify({
           watchlist_id: selected.id,
           notes_content: note,
         }),
       });
-      if (!res.ok) throw new Error("Failed to save note");
+
       setSavedNote(note);
       setNoteStatus("saved");
       toast.success("Note saved");
@@ -306,11 +293,10 @@ export const Dashboard = () => {
     setAnalysis("");
     setAnalyzing(true);
     try {
-      const res = await fetch(`${API_URL}/ai/analyze`, {
+      const data = await apiFetch(`ai/analyze`, "Failed to generate analysis", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${await getToken()}`,
         },
         body: JSON.stringify({
           portfolioContext: items.map((i) => ({
@@ -321,8 +307,7 @@ export const Dashboard = () => {
           })),
         }),
       });
-      if (!res.ok) throw new Error("Failed to generate analysis");
-      const data = await res.json();
+
       setAnalysis(data.analysis);
     } catch (err) {
       setError(err.message);
