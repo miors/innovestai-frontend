@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { getToken } from "../helper/supabase";
 import { Header } from "../components/Header";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import toast from "react-hot-toast";
+import { apiFetch } from "../helper/api-fetch";
 
 const COLORS = [
   "#3b82f6",
@@ -15,8 +15,6 @@ const COLORS = [
   "#84cc16",
 ];
 
-const API_URL = import.meta.env.VITE_API_URL;
-
 export const Portfolio = () => {
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -24,11 +22,9 @@ export const Portfolio = () => {
 
   const loadItems = async () => {
     try {
-      const res = await fetch(`${API_URL}/watchlist`, {
-        headers: { Authorization: `Bearer ${await getToken()}` },
-      });
-      if (!res.ok) throw new Error("Failed to load portfolio");
-      setItems(await res.json());
+      const jsonRes = await apiFetch("watchlist", "Failed to load portfolio");
+
+      setItems(jsonRes);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,11 +40,11 @@ export const Portfolio = () => {
       if (item.quantity == null || requested.current.has(item.id)) return;
       requested.current.add(item.id);
       try {
-        const res = await fetch(
-          `${API_URL}/market/price/${item.symbol}?type=${item.asset_type}`,
-          { headers: { Authorization: `Bearer ${await getToken()}` } },
+        const data = await apiFetch(
+          `market/price/${item.symbol}?type=${item.asset_type}`,
+          "Failed to fetch asset's price",
         );
-        const data = await res.json();
+
         setPrices((prev) => ({ ...prev, [item.id]: data.price }));
       } catch {
         //need to delete id, so that a failed price fetch can be retried
@@ -65,11 +61,10 @@ export const Portfolio = () => {
   const handleSave = async (id, quantity, buyPrice) => {
     setError("");
     try {
-      const res = await fetch(`${API_URL}/watchlist/holding`, {
+      await apiFetch(`watchlist/holding`, "Failed to save holding", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${await getToken()}`,
         },
         body: JSON.stringify({
           watchlist_id: id,
@@ -77,7 +72,7 @@ export const Portfolio = () => {
           buy_price: buyPrice === "" ? null : Number(buyPrice),
         }),
       });
-      if (!res.ok) throw new Error("Failed to save holding");
+
       await loadItems();
       toast.success("Holding saved");
       return true;
