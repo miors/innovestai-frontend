@@ -105,7 +105,6 @@ export const Dashboard = () => {
     let cancelled = false;
 
     const loadPrices = async () => {
-      // const token = await getToken();
       // Promise.allSettled so one bad symbol doesn't break the rest
       const results = await Promise.allSettled(
         items.map(async (item) => {
